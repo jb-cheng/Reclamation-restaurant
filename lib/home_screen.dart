@@ -72,9 +72,10 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       body: _dishes.isEmpty ? _buildEmpty() : _buildList(),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _openNewDish,
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: const Text('Add dish'),
       ),
     );
   }
