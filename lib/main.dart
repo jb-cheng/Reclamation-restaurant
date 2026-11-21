@@ -7,6 +7,7 @@ void main() {
   runApp(const ReclamationApp());
 }
 
+/// Root widget: applies the Reclamation theme and opens the menu.
 class ReclamationApp extends StatelessWidget {
   const ReclamationApp({super.key});
 
