@@ -1,11 +1,12 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'db_helper.dart';
-import 'dish.dart';
 import 'new_dish_screen.dart';
+import 'dish.dart';
 import 'theme.dart';
 
 /// Home screen: the seeded menu of dishes with their costs.
+/// Tap a dish to edit it, long-press to delete, FAB to add a new one.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -33,20 +34,12 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _openNewDish() async {
-    final dish = await Navigator.push<Dish>(
+  Future<void> _openFoodForm({Dish? food}) async {
+    final saved = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder: (context) => const NewDishScreen()),
+      MaterialPageRoute(builder: (_) => NewDishScreen(food: food)),
     );
-    if (dish == null) return;
-    // The unchanged add form has no cost field, so new dishes start at $0.00.
-    await DbHelper.instance.insertFood(Dish(
-      name: dish.name,
-      cost: 0.0,
-      description: dish.description,
-      image: '',
-    ));
-    _load();
+    if (saved == true) _load();
   }
 
   Future<void> _confirmDelete(Dish food) async {
@@ -54,7 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Delete dish?'),
-        content: Text('${food.name} will be removed.'),
+        content: Text('${food.name} will be removed from the menu.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -62,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
+            style: TextButton.styleFrom(foregroundColor: kDanger),
             child: const Text('Delete'),
           ),
         ],
@@ -86,11 +80,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openNewDish,
-        icon: const Icon(Icons.add),
-        label: const Text('Add dish'),
-      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _foods.isEmpty
@@ -101,6 +90,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     Expanded(child: _buildList()),
                   ],
                 ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _openFoodForm(),
+        icon: const Icon(Icons.add),
+        label: const Text('Add dish'),
+      ),
     );
   }
 
@@ -148,6 +142,8 @@ class _HomeScreenState extends State<HomeScreen> {
           Image.asset('assets/logo.png', width: 120),
           const SizedBox(height: 16),
           const Text('No dishes yet', style: TextStyle(color: kText, fontSize: 18)),
+          const SizedBox(height: 6),
+          const Text('Tap "Add dish" to create one.', style: TextStyle(color: kMuted)),
         ],
       ),
     );
@@ -162,6 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return Card(
           child: InkWell(
             borderRadius: BorderRadius.circular(14),
+            onTap: () => _openFoodForm(food: food),
             onLongPress: () => _confirmDelete(food),
             child: Padding(
               padding: const EdgeInsets.all(12),
