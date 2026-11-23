@@ -151,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildList() {
     return ListView.builder(
-      padding: const EdgeInsets.only(top: 4, bottom: 96),
+      padding: const EdgeInsets.only(top: 4, bottom: 140),
       itemCount: _foods.length,
       itemBuilder: (context, index) {
         final food = _foods[index];
