@@ -177,12 +177,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: food.image.isEmpty
-                        ? const SizedBox.shrink()
+                        ? const Icon(Icons.restaurant, color: kMuted, size: 30)
                         : Image.asset(
                             food.image,
                             fit: BoxFit.contain,
                             errorBuilder: (context, error, stackTrace) =>
-                                const SizedBox.shrink(),
+                                const Icon(Icons.restaurant, color: kMuted),
                           ),
                   ),
                   const SizedBox(width: 12),
