@@ -39,5 +39,30 @@ class Dish {
   }
 }
 
+/// A saved day plan: a date, a budget, and the dishes chosen for that day.
+class OrderPlan {
+  final int? id;
+  final String date; // stored as yyyy-MM-dd
+  final double targetCost;
+  final List<Dish> items;
+
+  const OrderPlan({
+    this.id,
+    required this.date,
+    required this.targetCost,
+    required this.items,
+  });
+
+  /// Sum of the chosen dishes; kept at or below targetCost.
+  double get total => items.fold(0.0, (sum, item) => sum + item.cost);
+}
+
+/// Format a date the same way it is stored in the database (yyyy-MM-dd).
+String formatDate(DateTime date) {
+  final month = date.month.toString().padLeft(2, '0');
+  final day = date.day.toString().padLeft(2, '0');
+  return '${date.year}-$month-$day';
+}
+
 /// Money label used across the UI.
 String formatCost(double value) => '\$${value.toStringAsFixed(2)}';

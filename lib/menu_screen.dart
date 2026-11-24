@@ -5,16 +5,16 @@ import 'new_dish_screen.dart';
 import 'dish.dart';
 import 'theme.dart';
 
-/// Home screen: the seeded menu of dishes with their costs.
+/// Menu items screen: the seeded menu of dishes with their costs.
 /// Tap a dish to edit it, long-press to delete, FAB to add a new one.
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+class MenuScreen extends StatefulWidget {
+  const MenuScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<MenuScreen> createState() => _MenuScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _MenuScreenState extends State<MenuScreen> {
   List<Dish> _foods = [];
   bool _loading = true;
 
@@ -70,16 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset('assets/logo.png', height: 26),
-            const SizedBox(width: 10),
-            const Text('RECLAMATION'),
-          ],
-        ),
-      ),
+      appBar: AppBar(title: const Text('MENU ITEMS')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _foods.isEmpty
