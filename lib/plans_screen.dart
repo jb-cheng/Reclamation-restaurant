@@ -6,9 +6,9 @@ import 'menu_screen.dart';
 import 'new_plan_screen.dart';
 import 'theme.dart';
 
-/// Home screen: lists every saved day plan. Tap a plan to edit it, long-press
-/// to delete, FAB to add a new one. The top-right button opens the menu items
-/// (dishes) screen.
+/// Home screen: query a plan by date (found / not found) and list every plan
+/// newest-first. Each plan can be edited or deleted. The top-right button
+/// opens the menu items screen.
 class PlansScreen extends StatefulWidget {
   const PlansScreen({super.key});
 
@@ -20,19 +20,57 @@ class _PlansScreenState extends State<PlansScreen> {
   List<OrderPlan> _plans = [];
   bool _loading = true;
 
+  DateTime? _queryDate;
+  bool _queried = false;
+  OrderPlan? _queryResult;
+
   @override
   void initState() {
     super.initState();
     _load();
   }
 
-  // Read the saved plans from the database and refresh the list.
   Future<void> _load() async {
     final plans = await DbHelper.instance.getPlans();
     if (!mounted) return;
     setState(() {
       _plans = plans;
       _loading = false;
+    });
+  }
+
+  Future<void> _pickQueryDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _queryDate ?? now,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 5),
+    );
+    if (picked != null) {
+      setState(() {
+        _queryDate = picked;
+      });
+    }
+  }
+
+  // Look up the plan saved for the chosen date.
+  Future<void> _runQuery() async {
+    if (_queryDate == null) return;
+    final result = await DbHelper.instance.getPlanByDate(formatDate(_queryDate!));
+    if (!mounted) return;
+    setState(() {
+      _queried = true;
+      _queryResult = result;
+    });
+  }
+
+  // Reset the picked date, the Find button and any found plan.
+  void _clearQuery() {
+    setState(() {
+      _queryDate = null;
+      _queried = false;
+      _queryResult = null;
     });
   }
 
@@ -49,7 +87,10 @@ class _PlansScreenState extends State<PlansScreen> {
       context,
       MaterialPageRoute(builder: (_) => NewPlanScreen(plan: plan)),
     );
-    if (saved == true) _load();
+    if (saved == true) {
+      _load();
+      if (_queried) _runQuery();
+    }
   }
 
   Future<void> _confirmDelete(OrderPlan plan) async {
@@ -74,6 +115,7 @@ class _PlansScreenState extends State<PlansScreen> {
     if (confirmed == true) {
       await DbHelper.instance.deletePlan(plan.id!);
       _load();
+      if (_queried) _runQuery();
     }
   }
 
@@ -106,10 +148,24 @@ class _PlansScreenState extends State<PlansScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
+          : ListView(
+              padding: const EdgeInsets.only(bottom: 140),
               children: [
-                _buildHeader(),
-                Expanded(child: _plans.isEmpty ? _buildEmpty() : _buildList()),
+                _buildQueryBox(),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+                  child: Text('MEAL PLANS',
+                      style: TextStyle(
+                          color: kMuted, fontWeight: FontWeight.w700, letterSpacing: 0.8)),
+                ),
+                if (_plans.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(
+                        child: Text('No saved plans yet.', style: TextStyle(color: kMuted))),
+                  )
+                else
+                  ..._plans.map((plan) => _buildPlanCard(plan)),
               ],
             ),
       floatingActionButton: FloatingActionButton.extended(
@@ -120,118 +176,171 @@ class _PlansScreenState extends State<PlansScreen> {
     );
   }
 
-  Widget _buildHeader() {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF2A2E16), kSurface],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
-        border: Border.all(color: kLime.withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.event, color: kLime),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildQueryBox() {
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Text('MEAL PLANS  ·  ${_plans.length} saved',
-                    style: const TextStyle(
-                        color: kLime, fontWeight: FontWeight.w800, letterSpacing: 1.1)),
-                const SizedBox(height: 2),
-                const Text('Tap a plan to edit · long-press to delete',
-                    style: TextStyle(color: kMuted, fontSize: 12)),
+                const Expanded(
+                  child: Text(
+                    'FIND A PLAN BY DATE',
+                    style: TextStyle(
+                        color: kLime, fontWeight: FontWeight.w800, letterSpacing: 1.1),
+                  ),
+                ),
+                TextButton(
+                  onPressed: (_queryDate == null && !_queried) ? null : _clearQuery,
+                  style: TextButton.styleFrom(
+                    foregroundColor: kDanger,
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    minimumSize: const Size(0, 0),
+                  ),
+                  child: const Text('Clear'),
+                ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmpty() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Image.asset('assets/logo.png', width: 120),
-          const SizedBox(height: 16),
-          const Text('No saved plans yet', style: TextStyle(color: kText, fontSize: 18)),
-          const SizedBox(height: 6),
-          const Text('Tap "New plan" to create one.', style: TextStyle(color: kMuted)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildList() {
-    return ListView.builder(
-      padding: const EdgeInsets.only(top: 4, bottom: 140),
-      itemCount: _plans.length,
-      itemBuilder: (context, index) {
-        final plan = _plans[index];
-        final over = plan.total > plan.targetCost;
-        return Card(
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: () => _editPlan(plan),
-            onLongPress: () => _confirmDelete(plan),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: _pickQueryDate,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: kSurfaceHigh,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_month, color: kLime, size: 20),
+                          const SizedBox(width: 10),
+                          Text(
+                            _queryDate == null ? 'Pick a date' : formatDate(_queryDate!),
+                            style: TextStyle(color: _queryDate == null ? kMuted : kText),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                FilledButton(
+                  onPressed: _queryDate == null ? null : _runQuery,
+                  child: const Text('Find'),
+                ),
+              ],
+            ),
+            if (_queried) ...[
+              const SizedBox(height: 12),
+              if (_queryResult == null)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: kSurfaceHigh,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: kDanger.withValues(alpha: 0.5)),
+                  ),
+                  child: Row(
                     children: [
-                      const Icon(Icons.event, color: kLime, size: 20),
-                      const SizedBox(width: 8),
-                      Text(plan.date,
-                          style: const TextStyle(
-                              color: kText, fontWeight: FontWeight.w800, fontSize: 16)),
-                      const Spacer(),
-                      Text(
-                        '${formatCost(plan.total)} / ${formatCost(plan.targetCost)}',
-                        style: TextStyle(
-                            color: over ? kDanger : kOk, fontWeight: FontWeight.w800),
+                      const Icon(Icons.search_off, color: kDanger, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text('No plan found for ${formatDate(_queryDate!)}.',
+                            style: const TextStyle(color: kText)),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text('${plan.items.length} dishes',
-                      style: const TextStyle(color: kMuted, fontSize: 12)),
-                  const SizedBox(height: 10),
-                  if (plan.items.isEmpty)
-                    const Text('No dishes in this plan.', style: TextStyle(color: kMuted))
-                  else
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        for (final item in plan.items)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: kSurfaceHigh,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(item.name,
-                                style: const TextStyle(color: kText, fontSize: 11.5)),
-                          ),
-                      ],
+                )
+              else
+                _buildPlanCard(_queryResult!, highlight: true),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlanCard(OrderPlan plan, {bool highlight = false}) {
+    final over = plan.total > plan.targetCost;
+    return Card(
+      margin: highlight ? EdgeInsets.zero : null,
+      shape: highlight
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: const BorderSide(color: kLime, width: 1.5),
+            )
+          : null,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.event, color: kLime, size: 20),
+                const SizedBox(width: 8),
+                Text(plan.date,
+                    style: const TextStyle(
+                        color: kText, fontWeight: FontWeight.w800, fontSize: 16)),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Edit plan',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.edit, size: 20, color: kMuted),
+                  onPressed: () => _editPlan(plan),
+                ),
+                IconButton(
+                  tooltip: 'Delete plan',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.delete_outline, size: 20, color: kDanger),
+                  onPressed: () => _confirmDelete(plan),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Text('${plan.items.length} dishes',
+                    style: const TextStyle(color: kMuted, fontSize: 12)),
+                const Spacer(),
+                Text(
+                  '${formatCost(plan.total)} / ${formatCost(plan.targetCost)}',
+                  style: TextStyle(color: over ? kDanger : kOk, fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (plan.items.isEmpty)
+              const Text('No dishes in this plan.', style: TextStyle(color: kMuted))
+            else
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final item in plan.items)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: kSurfaceHigh,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(item.name,
+                          style: const TextStyle(color: kText, fontSize: 11.5)),
                     ),
                 ],
               ),
-            ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 }
